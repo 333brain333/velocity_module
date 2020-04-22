@@ -1,18 +1,24 @@
-struct can_frame canMsg;
-MCP2515 mcp2515(10);
-MCP2515 mcp2515_1(9);
+////////////////////////functuions initialisations/////////////////////
+MCP2515 can1(10); //for In Out messages - to push control impact to module and recieve resulting feedback form it
+MCP2515 can2(9);//for velocity messages
+GyverPID regulator(p,i,d,dt);
 
-double speedFbCAN = 0.0;
-double speedFbCAN_1 = 0.0;
-unsigned long prevSendTime = 0;
+/////////////////////////pins/////////////////////////////
 const int relay1 = 5; // relay 1 - according to principal scheme  - it connects "neutral -" line to +24V - in case of HIGH mode, or disconnets with any line in case of LOW mode
 const int relay2 = 6; // relay 2 - according to principal scheme - it connecnts "signal" and "neutral -" lines to handle or to digital potentiometer and to relay 1 accordingly
 const int neutral = 7; // using this pin one could get nutral line state in inversed logic  - "neutral -":+24 V ==> 7 pin is LOW or "neutral -": 0 V ==> 7 pin is HIGH
 const int signal_pin = A0; // using this pin one could get analog value of the handle position. +0.5V - moving forward with max velocity; +2.5V - neutral position, no moving; +4.5V - moving backwards with max velocity
 const int wiper = A5; // wiper of the digital potentiometer. The usage of this pin helps to check if sent reference speed to digital potentiometer is implemented or not.
-float fbSpeed=0.0; // speed obtaining from handle thru signal_pin
-int currentSpeed;
+const int interruptPinCan1 = 2;
+const int interruptPinCan2 = 3;
+//////////////////timers////////////////////////
 unsigned long curr_time=0;
+unsigned long prevSendTime = 0;
+
+//////////////////variables////////////////////////
+double speedFbCAN = 0.0; //speed obtained from canVelocity message
+float fbSpeed=0.0; //  speed handle position
+int currentSpeed;
 unsigned long prevPotValue=0;
 String incoming_mes="";
 float incoming_ref_speed = 0.0; //in km/h
@@ -25,4 +31,10 @@ float d=0.0;
 float pid=0.0;
 int16_t dt=100;
 int cur_pot_value=127;
-GyverPID regulator(p,i,d,dt);
+volatile byte interruptCan1 = 0;
+volatile byte interruptCan2 = 0;
+
+///////////////////////structs&enums/////////////////////////
+struct can_frame canVelocity;
+struct can_frame canInMes;
+struct can_frame canOutMes;

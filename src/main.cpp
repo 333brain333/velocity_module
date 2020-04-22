@@ -1,38 +1,9 @@
 #include <Arduino.h>
-
 #include <GyverPID.h>
 #include <SPI.h>
 #include <stdio.h>
 #include <mcp2515.h>
-
-struct can_frame canMsg;
-MCP2515 mcp2515(10);
-MCP2515 mcp2515_1(9);`
-
-double speedFbCAN = 0.0;
-double speedFbCAN_1 = 0.0;
-unsigned long prevSendTime = 0;
-const int relay1 = 5; // relay 1 - according to principal scheme  - it connects "neutral -" line to +24V - in case of HIGH mode, or disconnets with any line in case of LOW mode
-const int relay2 = 6; // relay 2 - according to principal scheme - it connecnts "signal" and "neutral -" lines to handle or to digital potentiometer and to relay 1 accordingly
-const int neutral = 7; // using this pin one could get nutral line state in inversed logic  - "neutral -":+24 V ==> 7 pin is LOW or "neutral -": 0 V ==> 7 pin is HIGH
-const int signal_pin = A0; // using this pin one could get analog value of the handle position. +0.5V - moving forward with max velocity; +2.5V - neutral position, no moving; +4.5V - moving backwards with max velocity
-const int wiper = A5; // wiper of the digital potentiometer. The usage of this pin helps to check if sent reference speed to digital potentiometer is implemented or not.
-float fbSpeed=0.0; // speed obtaining from handle thru signal_pin
-int currentSpeed;
-unsigned long curr_time=0;
-unsigned long prevPotValue=0;
-String incoming_mes="";
-float incoming_ref_speed = 0.0; //in km/h
-String incoming_mode = "m";
-String current_mode="manual";
-float pot_value=127.0; //in points from 0 to 255, 147== 0 km/h
-float p=0.1;
-float i=0.0;
-float d=0.0;
-float pid=0.0;
-int16_t dt=100;
-int cur_pot_value=127;
-GyverPID regulator(p,i,d,dt);
+#include "main.h"
 
 
 
@@ -85,50 +56,6 @@ void SET_ROBOT()
   
 }
 
-void SEND()
-{
-Serial.print((String)regulator.getResultTimer()+";"+fbSpeed+";"+pot_value+";"+current_mode+";"+String(speedFbCAN)+";"+p+";"+i+";"+d+";"+(int)regulator.getResultTimer()+";"+String(speedFbCAN_1)+"\n");
-}
-
-void SEND_TO_HUMAN()
-{
-Serial.print((String)"PID output: "+regulator.getResultTimer()+";"+"Handle position: "+fbSpeed+";"+"Refer. handl. pos: "+pot_value+";"+"Mode: "+current_mode+";"+"Speed from CAN1: "+String(speedFbCAN)+";"+"PID coef.: "+p+";"+i+";"+d+";"+"PID output"+(int)regulator.getResultTimer()+";"+"Speed from CAN2: "+String(speedFbCAN_1)+"\n");
-}
-
-
-void setup() {
-
-  currentSpeed = 0 ;
-  SPI.begin();
-  delay(200);
-  pinMode(SS,OUTPUT); // switch chip select pin to output mode
-  pinMode(relay1,OUTPUT); // switch relay 1 pin to output mode
-  pinMode(relay2,OUTPUT);
-  digitalWrite(relay1,LOW);
-  digitalWrite(relay2,LOW);
-  pinMode(neutral,INPUT);
-  digitalWrite(neutral,HIGH);  
-  mcp2515.reset();
-  mcp2515.setBitrate(CAN_500KBPS, MCP_16MHZ);
-  mcp2515.setNormalMode();
-  mcp2515_1.reset();
-  mcp2515_1.setBitrate(CAN_500KBPS, MCP_16MHZ);
-  mcp2515_1.setNormalMode();
-  regulator.setDirection(REVERSE); // направление регулирования (NORMAL/REVERSE). ПО УМОЛЧАНИЮ СТОИТ NORMAL
-  regulator.setLimits(-2, 2);    // пределы (ставим для 8 битного ШИМ). ПО УМОЛЧАНИЮ СТОЯТ 0 И 255
-  regulator.setpoint = 0;
-  regulator.setMode(0);
-   
-
-  Serial.begin(115200);
-  Serial.setTimeout(10);
-  while (!Serial) {
-    ;
-  }
-
-  prevSendTime = millis();  
-}
-
 
 void readCAN()
 {
@@ -141,7 +68,63 @@ void readCAN()
      interrupt--;
    }
 }
+/*
+void SEND()
+{
+Serial.print((String)regulator.getResultTimer()+";"+fbSpeed+";"+pot_value+";"+current_mode+";"+String(speedFbCAN)+";"+p+";"+i+";"+d+";"+(int)regulator.getResultTimer()+";"+String(speedFbCAN_1)+"\n");
+}
 
+void SEND_TO_HUMAN()
+{
+Serial.print((String)"PID output: "+regulator.getResultTimer()+";"+"Handle position: "+fbSpeed+";"+"Refer. handl. pos: "+pot_value+";"+"Mode: "+current_mode+";"+"Speed from CAN1: "+String(speedFbCAN)+";"+"PID coef.: "+p+";"+i+";"+d+";"+"PID output"+(int)regulator.getResultTimer()+";"+"Speed from CAN2: "+String(speedFbCAN_1)+"\n");
+}
+*/
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////     SETUP      ////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void setup() {
+
+  currentSpeed = 0 ;
+
+  pinMode(SS,OUTPUT); // switch chip select pin to output mode
+  pinMode(relay1,OUTPUT); // switch relay 1 pin to output mode
+  pinMode(relay2,OUTPUT);
+  digitalWrite(relay1,LOW);
+  digitalWrite(relay2,LOW);
+  pinMode(neutral,INPUT);
+  digitalWrite(neutral,HIGH);  
+
+  mcp2515.reset();
+  mcp2515.setBitrate(CAN_500KBPS, MCP_16MHZ);
+  mcp2515.setNormalMode();
+  mcp2515_1.reset();
+  mcp2515_1.setBitrate(CAN_500KBPS, MCP_16MHZ);
+  mcp2515_1.setNormalMode();
+  regulator.setDirection(REVERSE); // направление регулирования (NORMAL/REVERSE). ПО УМОЛЧАНИЮ СТОИТ NORMAL
+  regulator.setLimits(-2, 2);    // пределы (ставим для 8 битного ШИМ). ПО УМОЛЧАНИЮ СТОЯТ 0 И 255
+  regulator.setpoint = 0;
+  regulator.setMode(0);
+
+  SPI.begin();
+  delay(200);
+  Serial.begin(115200);
+  Serial.setTimeout(10);
+
+  prevSendTime = millis();
+
+  while (!Serial) {
+    ;
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////     END OF SETUP      ////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////     MAIN LOOP     ////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void loop() {
 
   readCAN();

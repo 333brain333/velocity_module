@@ -38,3 +38,9 @@ volatile byte interruptCan2 = 0;
 struct can_frame canVelocity;
 struct can_frame canInMes;
 struct can_frame canOutMes;
+typedef enum {
+    normalMode;
+    incomingMesCan1;
+    incomingMesCan2;
+    digiPot;
+}errCode_tag;

@@ -57,17 +57,30 @@ void SET_ROBOT()
 }
 
 
-void readCanVelocity()
+void readCan1()
 {
-   if (interruptVelocity)
-   {
-    if (can1.readMessage(&canMsg) == MCP2515::ERROR_OK)
+    if (can1.readMessage(&canInMes) != MCP2515::ERROR_OK)
      { // && (canMsg.can_id == 0x98FF0102) ) {
-        speedFbCAN = 0.2 * canMsg.data[5];
-    }
-     interruptVelocity--;
+        errCode=incomingMesCan1;
+     }
+     interruptCan1--;
    }
+
+void readCan2()
+{
+    if (can2.readMessage(&canVelocity) == MCP2515::ERROR_OK)
+     { // && (canMsg.can_id == 0x98FF0102) ) {
+        speedFbCAN = 0.2 * canVelocity.data[5];
+     }
+    else
+    {
+      errCode=incomingMesCan2;
+    }
+     interruptCan2--;
 }
+
+
+
 
 void irqHandlerCan1()
 {
@@ -95,6 +108,7 @@ Serial.print((String)"PID output: "+regulator.getResultTimer()+";"+"Handle posit
 void setup() {
 
   currentSpeed = 0 ;
+  errCode_tag errCode = normalMode;
 
   pinMode(SS,OUTPUT); // switch chip select pin to output mode
   pinMode(relay1,OUTPUT); // switch relay 1 pin to output mode
@@ -142,7 +156,7 @@ void setup() {
 void loop() {
 
   readCAN();
-  
+  /*
   // Read serial input:
   if (Serial.available()>0){
       incoming_mes=Serial.readString();
@@ -165,6 +179,7 @@ void loop() {
           SET_ROBOT();
         }
     }
+  */
   if (incoming_mode=="r"){
       regulator.setpoint = incoming_ref_speed;
       regulator.input = speedFbCAN;

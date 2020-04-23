@@ -8,17 +8,18 @@
 
 
 void SET_SPEED(void) {
+  int cur_pot_value;
   // take the SS pin low to select the chip:
   digitalWrite(SS, LOW);
   //  send in the address and value via SPI:
   SPI.transfer(0); // address
   cur_pot_value=(int)pot_value;
   if ((handle-127)*(cur_pot_value-127)<0){
-    cur_pot_value=147.0;
+    cur_pot_value=147;
     SPI.transfer(cur_pot_value);
   }
   else {
-    if (abs(handle-127)<abs(cur_pot_value-127.0)){
+    if (abs(handle-127)<abs(cur_pot_value-127)){
     cur_pot_value=handle+20;
     SPI.transfer(cur_pot_value);
     }
@@ -36,23 +37,28 @@ void SET_SPEED(void) {
  digitalWrite(SS, HIGH);
 }
 
-
-
-void GET_SPEED(void)
+void GET_HANDLE(void)
 {
-  handle=(int)(analogRead(signal_pin)*0.25);
+  handle = (int)(analogRead(signal_pin) * 0.25);
 }
+
+void GET_WIPER_POS(void)
+{
+  wiper_pos=analogRead(wiper)*0.25;
+}
+
+
+
 
 void SET_MANUAL(void)
 {
   digitalWrite(relay1,LOW);
-  state = STATE_MANUAL;
+  pot_value=handle;
 }
 
 void SET_ROBOT()
 {
   digitalWrite(relay1,HIGH);
-  state = STATE_ROBOT;
   regulator.setpoint = incoming_ref_speed;
   regulator.input = speedFbCAN;
   pid=regulator.getResultTimer()/10.0;
@@ -60,16 +66,34 @@ void SET_ROBOT()
     prevPotValue=millis();
     pot_value=pot_value+pid;  
   }
-  is_in_range()
 }
 
+void parseInMes(struct can_frame *frame)
+{
+  incoming_ref_speed = canInMes.data[5]/10.0;
+  switch ((frame->data[6] & 0xE0)>>5)
+  {
+  case SET_STATE_MANUAL:
+    state = STATE_MANUAL;
+    break;
+  case SET_STATE_ROBOT:
+    state = STATE_ROBOT;
+    break;
+  case SET_STATE_CLEAR:
+    state = STATE_MANUAL;
+    errCode=normalMode;
+    break;
+  case SET_STATE_STOP:
+    break;
+
+  }
+}
 
 void readCan1()
 {
     if (can1.readMessage(&canInMes) == MCP2515::ERROR_OK)
     {
-        incoming_ref_speed = canInMes.data[5];
-        setState = canInMes.data[6]&&
+      parseInMes(&canInMes);
     }
     else
      { // && (canMsg.can_id == 0x98FF0102) ) {
@@ -91,15 +115,32 @@ void readCan2()
     }
 }
 
-void GET_HANDLE(void)
+void sendCan1()
 {
-  handle_pos = (int)(analogRead(signal_pin) * 0.25);
+  if (millis() - prevSendTime > 100){
+    prevSendTime = millis();
+    struct can_frame canOutMes;
+    switch (state)
+    {
+    case STATE_MANUAL:
+      canOutMes.data[6] = errCode | (STATE_MANUAL<<5);
+      break;
+    case STATE_ROBOT:
+      canOutMes.data[6] = errCode | (STATE_ROBOT<<5);
+      break;
+    case STATE_STOP:
+      canOutMes.data[6] = errCode | (STATE_STOP<<5);
+      break;
+    case STATE_ERROR:
+      canOutMes.data[6] = errCode | (STATE_ERROR<<5);
+      break;
+    }
+    canOutMes.data[5] = incoming_ref_speed*10.0;
+    canOutMes.data[3] = 0xFF;
+    can1.sendMessage(MCP2515::TXB1, &canOutMes);
+  }
 }
 
-void GET_WIPER_POS(void)
-{
-  wiper_pos=analogRead(wiper)*0.25;
-}
 
 int is_in_range(int w){
   if (w>(incoming_ref_speed+18)&&w<(incoming_ref_speed+20)){
@@ -116,6 +157,7 @@ void err_counter_check(){
     errTimer=millis();
     if (errCounter>2){
       state = STATE_ERROR;
+      errCode = digiPot;
     }
   }
 }
@@ -216,29 +258,20 @@ void loop() {
         }
     }
   */
- switch (setState)
- {
-   case SET_STATE_ROBOT:
-       SET_ROBOT();
-       break;
-   case SET_STATE_STOP:
+  switch (state)
+  {
+    case STATE_ROBOT:
+      SET_ROBOT();
       break;
-   case SET_STATE_CLEAR:
+    case STATE_MANUAL:
       SET_MANUAL();
       break;
-   default:
-      SET_MANUAL();
-
- }
-
-  else if (incoming_mode=="m"){
-    pot_value=incoming_ref_speed;
-  }
-      
-
-  if (incoming_ref_speed==0){
+    case STATE_STOP:
       pot_value=127.0;
-    }
+      break;
+    default:
+      SET_MANUAL();
+  }
   if (pot_value>230){
     pot_value=230.0;
   }
@@ -246,13 +279,11 @@ void loop() {
     pot_value=25.0;
   }
   
-  
-  
-  GET_SPEED();
-  if (millis() - prevSendTime > 100){
-    SEND_TO_HUMAN();
-    prevSendTime = millis();
-  }
+  GET_HANDLE();
+  GET_WIPER_POS();
+  is_in_range(wiper_pos);
+  err_counter_check();
+  sendCan1();
   SET_SPEED();
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////

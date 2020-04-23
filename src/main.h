@@ -15,6 +15,7 @@ const int interruptPinCan2 = 3;
 unsigned long curr_time=0;
 unsigned long prevSendTime = 0;
 unsigned long prevPotValue=0;
+unsigned long errTimer = 0;
 //////////////////variables////////////////////////
 double speedFbCAN = 0.0; //speed obtained from canVelocity message
 float handle=0.0; //  speed handle position
@@ -24,15 +25,15 @@ float incoming_ref_speed = 0.0; //in km/h
 //String incoming_mode = "m"; delete in future release
 //String current_mode="manual"; delete in future release
 float pot_value=127.0; //in points from 0 to 255, 147== 0 km/h
+int wiper_pos = 0;
 float p=0.1;
 float i=0.0;
 float d=0.0;
 float pid=0.0;
 int16_t dt=100;
-int cur_pot_value=127;
 volatile byte interruptCan1 = 0;
 volatile byte interruptCan2 = 0;
-
+int errCounter = 0;
 ///////////////////////structs&enums/////////////////////////
 struct can_frame canVelocity;
 struct can_frame canInMes;

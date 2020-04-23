@@ -13,13 +13,13 @@ void SET_SPEED(void) {
   //  send in the address and value via SPI:
   SPI.transfer(0); // address
   cur_pot_value=(int)pot_value;
-  if ((fbSpeed-127)*(cur_pot_value-127)<0){
+  if ((handle-127)*(cur_pot_value-127)<0){
     cur_pot_value=147.0;
     SPI.transfer(cur_pot_value);
   }
   else {
-    if (abs(fbSpeed-127)<abs(cur_pot_value-127.0)){
-    cur_pot_value=fbSpeed+20;
+    if (abs(handle-127)<abs(cur_pot_value-127.0)){
+    cur_pot_value=handle+20;
     SPI.transfer(cur_pot_value);
     }
     else{
@@ -40,7 +40,7 @@ void SET_SPEED(void) {
 
 void GET_SPEED(void)
 {
-  fbSpeed=(int)(analogRead(signal_pin)*0.25);
+  handle=(int)(analogRead(signal_pin)*0.25);
 }
 
 void SET_MANUAL(void)
@@ -66,9 +66,15 @@ void SET_ROBOT()
 
 void readCan1()
 {
-    if (can1.readMessage(&canInMes) != MCP2515::ERROR_OK)
+    if (can1.readMessage(&canInMes) == MCP2515::ERROR_OK)
+    {
+        incoming_ref_speed = canInMes.data[5];
+        setState = canInMes.data[6]&&
+    }
+    else
      { // && (canMsg.can_id == 0x98FF0102) ) {
-        errCode=incomingMesCan1;
+       state = STATE_ERROR;
+       errCode=incomingMesCan1;
      }
    }
 
@@ -80,6 +86,7 @@ void readCan2()
      }
     else
     {
+      state = STATE_ERROR;
       errCode=incomingMesCan2;
     }
 }

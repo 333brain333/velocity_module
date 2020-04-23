@@ -17,12 +17,12 @@ unsigned long prevSendTime = 0;
 unsigned long prevPotValue=0;
 //////////////////variables////////////////////////
 double speedFbCAN = 0.0; //speed obtained from canVelocity message
-float fbSpeed=0.0; //  speed handle position
-int currentSpeed = 0;
-String incoming_mes="";
+float handle=0.0; //  speed handle position
+//int currentSpeed = 0; delete in future release
+//String incoming_mes=""; delete in future release
 float incoming_ref_speed = 0.0; //in km/h
-String incoming_mode = "m";
-String current_mode="manual";
+//String incoming_mode = "m"; delete in future release
+//String current_mode="manual"; delete in future release
 float pot_value=127.0; //in points from 0 to 255, 147== 0 km/h
 float p=0.1;
 float i=0.0;

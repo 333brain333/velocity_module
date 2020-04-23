@@ -46,14 +46,21 @@ void GET_SPEED(void)
 void SET_MANUAL(void)
 {
   digitalWrite(relay1,LOW);
-  current_mode="manual";
+  state = STATE_MANUAL;
 }
 
 void SET_ROBOT()
 {
   digitalWrite(relay1,HIGH);
-  current_mode="robot";
-  
+  state = STATE_ROBOT;
+  regulator.setpoint = incoming_ref_speed;
+  regulator.input = speedFbCAN;
+  pid=regulator.getResultTimer()/10.0;
+  if (millis()-prevPotValue>dt){
+    prevPotValue=millis();
+    pot_value=pot_value+pid;  
+  }
+  is_in_range()
 }
 
 
@@ -63,7 +70,6 @@ void readCan1()
      { // && (canMsg.can_id == 0x98FF0102) ) {
         errCode=incomingMesCan1;
      }
-     interruptCan1--;
    }
 
 void readCan2()
@@ -76,12 +82,39 @@ void readCan2()
     {
       errCode=incomingMesCan2;
     }
-     interruptCan2--;
+}
+
+void GET_HANDLE(void)
+{
+  handle_pos = (int)(analogRead(signal_pin) * 0.25);
+}
+
+void GET_WIPER_POS(void)
+{
+  wiper_pos=analogRead(wiper)*0.25;
+}
+
+int is_in_range(int w){
+  if (w>(incoming_ref_speed+18)&&w<(incoming_ref_speed+20)){
+    return 1;
+  }
+  else {
+    errCounter++;
+    return 0;
+  }
+}
+
+void err_counter_check(){
+  if ((millis()-errTimer)>500){
+    errTimer=millis();
+    if (errCounter>2){
+      state = STATE_ERROR;
+    }
+  }
 }
 
 
-
-
+/*
 void irqHandlerCan1()
 {
   interruptCan1++;
@@ -91,6 +124,7 @@ void irqHandlerCan2()
 {
   interruptCan2++;
 }
+
 /*
 void SEND()
 {
@@ -106,9 +140,6 @@ Serial.print((String)"PID output: "+regulator.getResultTimer()+";"+"Handle posit
 ////////////////////////////////////////     SETUP      ////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void setup() {
-
-  currentSpeed = 0 ;
-  errCode_tag errCode = normalMode;
 
   pinMode(SS,OUTPUT); // switch chip select pin to output mode
   pinMode(relay1,OUTPUT); // switch relay 1 pin to output mode
@@ -131,8 +162,8 @@ void setup() {
   regulator.setpoint = 0;
   regulator.setMode(0);
 
-  attachInterrupt(digitalPinToInterrupt(interruptPinCan1), irqHandlerCan1, FALLING);
-  attachInterrupt(digitalPinToInterrupt(interruptPinCan2), irqHandlerCan2, FALLING);
+  attachInterrupt(digitalPinToInterrupt(interruptPinCan1), readCan1, FALLING);
+  attachInterrupt(digitalPinToInterrupt(interruptPinCan2), readCan2, FALLING);
   SPI.begin();
   delay(200);
   Serial.begin(115200);
@@ -154,8 +185,6 @@ void setup() {
 ////////////////////////////////////////     MAIN LOOP     /////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void loop() {
-
-  readCAN();
   /*
   // Read serial input:
   if (Serial.available()>0){
@@ -180,19 +209,26 @@ void loop() {
         }
     }
   */
-  if (incoming_mode=="r"){
-      regulator.setpoint = incoming_ref_speed;
-      regulator.input = speedFbCAN;
-      pid=regulator.getResultTimer()/10.0;
-      if (millis()-prevPotValue>dt){
-        prevPotValue=millis();
-        pot_value=pot_value+pid;  
-      }
-  }
+ switch (setState)
+ {
+   case SET_STATE_ROBOT:
+       SET_ROBOT();
+       break;
+   case SET_STATE_STOP:
+      break;
+   case SET_STATE_CLEAR:
+      SET_MANUAL();
+      break;
+   default:
+      SET_MANUAL();
+
+ }
+
   else if (incoming_mode=="m"){
     pot_value=incoming_ref_speed;
   }
       
+
   if (incoming_ref_speed==0){
       pot_value=127.0;
     }

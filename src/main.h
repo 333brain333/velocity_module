@@ -14,12 +14,11 @@ const int interruptPinCan2 = 3;
 //////////////////timers////////////////////////
 unsigned long curr_time=0;
 unsigned long prevSendTime = 0;
-
+unsigned long prevPotValue=0;
 //////////////////variables////////////////////////
 double speedFbCAN = 0.0; //speed obtained from canVelocity message
 float fbSpeed=0.0; //  speed handle position
-int currentSpeed;
-unsigned long prevPotValue=0;
+int currentSpeed = 0;
 String incoming_mes="";
 float incoming_ref_speed = 0.0; //in km/h
 String incoming_mode = "m";
@@ -39,8 +38,23 @@ struct can_frame canVelocity;
 struct can_frame canInMes;
 struct can_frame canOutMes;
 typedef enum {
-    normalMode;
-    incomingMesCan1;
-    incomingMesCan2;
-    digiPot;
+    normalMode,
+    incomingMesCan1,
+    incomingMesCan2,
+    digiPot,
 }errCode_tag;
+ errCode_tag errCode = normalMode;
+typedef enum {
+    SET_STATE_MANUAL,
+    SET_STATE_ROBOT,
+    SET_STATE_CLEAR,
+    SET_STATE_STOP,
+} setState_tag;
+setState_tag setState = SET_STATE_MANUAL;
+typedef enum{
+    STATE_ROBOT,
+    STATE_MANUAL,
+    STATE_STOP,
+    STATE_ERROR
+} state_tag;
+state_tag state = STATE_MANUAL;
